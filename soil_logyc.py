@@ -304,7 +304,7 @@ class Soil:
         feat_p10 = buffer_vias400.getFeatures().next()
 
         diff1 = feat_p9.geometry().difference(feat_p10.geometry())
-        QMessageBox.information(self.dlg,"POBLACION INFINITA", "Tamano de muestra: " + str(type(diff1)))
+        QMessageBox.information(self.dlg,"MENSAJE", "Tipo de dato: " + str(type(diff1)))
 
 
         #processing.runandload("qgis:polygonintersections",buffer_vias200, buffer_vias100, "", "", "C:/Users/toshiba/Downloads"  )
@@ -312,7 +312,7 @@ class Soil:
         #diferencia = QgsVectorLayer("C:/Users/toshiba/Downloads ", "diferencia", "ogr" )
 
 
-
+        """
         crs = QgsCoordinateReferenceSystem(crs, QgsCoordinateReferenceSystem.PostgisCrsId)
         typeString = "%s?crs=%s" % (typeString, crs.authid())
         layer = QgsVectorLayer(typeString, diff1, "memory")
@@ -320,6 +320,7 @@ class Soil:
         registry = QgsMapLayerRegistry.instance()
         QgsMapLayerRegistry.instance().addMapLayer(layer)
         return layer
+        """
 
 
 
