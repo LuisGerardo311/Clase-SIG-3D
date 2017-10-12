@@ -27,11 +27,12 @@ from qgis.utils import iface
 from qgis.analysis import QgsGeometryAnalyzer
 from PyQt4 import QtCore, QtGui
 from osgeo import ogr
+from qgis.gui import QgsMessageBar
+import processing
+import random
 import sys
 sys.path.append('C:\Users\toshiba\.qgis2\python\plugins')
-from processing.core.Processing import Processing
-Processing.initialize()
-from processing.tools import *
+import processing
 
 # Initialize Qt resources from file resources.py
 import resources
@@ -258,11 +259,12 @@ class Soil:
                 value = e.evaluate (f)
                 selectedLayer.changeAttributeValue (f.id(), idx, value)
 
-
+        area_est.deselect(0)
         #atualizción de columna
         #cierre de edición
         selectedLayer.updateFields()
         selectedLayer.commitChanges()
+
 
         # definición de variables para estimar tamaño de muestra
         marg_error = self.dlg.marg_error.value()
@@ -279,20 +281,24 @@ class Soil:
             muestra = ((nivel_conf**2) * 0.5 * 0.5) / (marg_error**2)
             QMessageBox.information(self.dlg,"POBLACION INFINITA", "Tamano de muestra: " + str(int(muestra)))
 
-		#Se leen los vectores que esten el la lista de capas cargada en QGis
+        #Se parsea a entero el tamaño de muestra
+        muestra_int = int(muestra)
+
+        #Generación de los buffer sobre la capa vías
+        # Se leen los vectores que esten el la lista de capas cargada en QGis
         layers = self.iface.legendInterface().layers()
 
-		#Selecciona la capa vial para hacer multibuffer (capa de vías)
+        # Selecciona la capa vial para hacer multibuffer (capa de vías)
         selectedLayerIndex = self.dlg.capavias.currentIndex()
         selectedLayer = layers[selectedLayerIndex]
 
-		#Generar el buffer de la capa vias
+        # Generar el buffer de la capa vias
         vias = selectedLayer
-        QgsGeometryAnalyzer().buffer(vias, "C:/Users/toshiba/Downloads/buffer_vias100.shp", 100, False, True, -1 )
-        QgsGeometryAnalyzer().buffer(vias, "C:/Users/toshiba/Downloads/buffer_vias200.shp", 200, False, True, -1 )
-        QgsGeometryAnalyzer().buffer(vias, "C:/Users/toshiba/Downloads/buffer_vias300.shp", 300, False, True, -1 )
-        QgsGeometryAnalyzer().buffer(vias, "C:/Users/toshiba/Downloads/buffer_vias400.shp", 400, False, True, -1 )
-        QgsGeometryAnalyzer().buffer(vias, "C:/Users/toshiba/Downloads/buffer_vias500.shp", 500, False, True, -1 )
+        QgsGeometryAnalyzer().buffer(vias, "C:/Users/toshiba/Downloads/buffer_vias100.shp", 100, False, True, -1)
+        QgsGeometryAnalyzer().buffer(vias, "C:/Users/toshiba/Downloads/buffer_vias200.shp", 200, False, True, -1)
+        QgsGeometryAnalyzer().buffer(vias, "C:/Users/toshiba/Downloads/buffer_vias300.shp", 300, False, True, -1)
+        QgsGeometryAnalyzer().buffer(vias, "C:/Users/toshiba/Downloads/buffer_vias400.shp", 400, False, True, -1)
+        QgsGeometryAnalyzer().buffer(vias, "C:/Users/toshiba/Downloads/buffer_vias500.shp", 500, False, True, -1)
         buffer_vias500 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias500.shp", "", "ogr")
         buffer_vias400 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias400.shp", "", "ogr")
         buffer_vias300 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias300.shp", "", "ogr")
@@ -300,18 +306,199 @@ class Soil:
         buffer_vias100 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias100.shp", "", "ogr")
 
 
-        processing.runalg("qgis:polygonintersections",buffer_vias200, buffer_vias100, "", "", "C:/Users/toshiba/Downloads"  )
-        processing.runalg('', diferencia, diferencia.shp)
-        diferencia = QgsVectorLayer("C:/Users/toshiba/Downloads ", "diferencia", "ogr" )
+        #Generación de puntos de muestreo
+        processing.runalg('qgis:randompointsinsidepolygonsfixed', vias, 0, muestra_int, 0, "C:/Users/toshiba/Downloads/sitios_muestreo.shp")
+        sitios_muestreo = iface.addVectorLayer("C:/Users/toshiba/Downloads/sitios_muestreo.shp", "", "ogr")
+        QMessageBox.information(self.dlg, "MENSAJE", "Typo de dato: " + str(type(sitios_muestreo)))
 
 
-        QgsMapLayerRegistry.instance().addMapLayer(diferencia)
+        """""
+        registry = QgsMapLayerRegistry.instance()
+        QgsMapLayerRegistry.addMapLayer(QgsMapLayer, True)
+        return layer
 
 
-        #feat_p9 = buffer_vias500.getFeatures().next()
-        #feat_p10 = buffer_vias400.getFeatures().next()
 
-        #diff1 = feat_p9.geometry().difference(feat_p10.geometry()).exportToWkt()
+
+        # select feature
+        feat = vias.select(0)
+
+
+
+        # get geometry
+        geom = feat.geometry()
+
+        # determine buffer 500 m
+        buffer = geom.buffer(500, -1)
+
+        # Extract CRS from route
+        CRS = vias.crs().postgisSrid()
+
+        URI = "Polygon?crs=epsg:" + str(CRS) + "&field=id:integer""&index=yes"
+
+        # Create polygon layer for buffer
+        mem_layer = QgsVectorLayer(URI,
+                                   "buffer",
+                                   "memory")
+
+        # add Map Layer to Registry
+        QgsMapLayerRegistry.instance().addMapLayer(mem_layer)
+
+        # Prepare mem_layer for editing
+        mem_layer.startEditing()
+
+        # Set feature for buffer
+        feat2 = QgsFeature()
+
+        # Set geometry for buffer
+        feat2.setGeometry(buffer)
+
+        # set attributes values for buffer
+        feat2.setAttributes([1])
+
+        mem_layer.addFeature(feat2, True)
+
+        # stop editing and save changes
+        mem_layer.commitChanges()
+
+        # deselect feature
+        vias.deselect(0)
+
+        # zoom to Active Layer (now is buffer)
+        iface.zoomToActiveLayer()
+
+
+
+  		#Generar el buffer de la capa vias
+
+
+
+        feat_p9 = buffer_vias500.getFeatures().next()
+        feat_p10 = buffer_vias400.getFeatures().next()
+
+        diff1 = feat_p9.geometry().difference(feat_p10.geometry())
+        QMessageBox.information(self.dlg,"MENSAJE", "Tipo de dato: " + str(type(diff1)))
+        #print [diff1]
+        #diff11 = QgsVectorLayer(diff1,"anillo100", "",  "")
+
+        #generación de puntos aleatorios
+        def createQgsPoints(coor):
+            return [QgsPoint(coor[i], coor[i + 1]) for i in range(0, len(coor), 2)]
+
+        def createPointRandomLayer(num_points):
+            layer = iface.activeLayer()
+
+
+
+            crs = layer.crs()
+            epsg = crs.postgisSrid()
+
+            extent = layer.extent()
+
+            xmax = extent.xMaximum()
+            xmin = extent.xMinimum()
+            ymax = extent.yMaximum()
+            ymin = extent.yMinimum()
+
+            coor = []
+
+            for i in range(num_points):
+                xRandom = random.uniform(xmin, xmax)
+                yRandom = random.uniform(ymin, ymax)
+                coor.append(xRandom)
+                coor.append(yRandom)
+
+            CRS = QgsCoordinateReferenceSystem(epsg)
+
+            uri = "Point?crs=epsg:" + str(epsg) + "&field=id:integer""&index=yes"
+
+            mem_layer = QgsVectorLayer(uri,"Sitios de muestreo","memory")
+
+            # add Map Layer to Registry
+            QgsMapLayerRegistry.instance().addMapLayer(mem_layer)
+
+            # Prepare mem_layer for editing
+            mem_layer.startEditing()
+
+            # points to add
+            points = createQgsPoints(coor)
+            # Calculate number points
+            n = len(points)
+
+            # Set feature
+            feature = []
+
+            for i in range(n):
+                feat = QgsFeature()
+                feature.append(feat)
+
+            # set attributes values
+            for i in range(n):
+                feature[i].setGeometry(QgsGeometry.fromPoint(points[i]))  # Set geometry
+                feature[i].setAttributes([i])
+                mem_layer.addFeature(feature[i], True)
+
+            # stop editing and save changes
+            mem_layer.commitChanges()
+        # Creación de puntos igual al tamaño de muestra
+        createPointRandomLayer(muestra_int)
+
+
+
+
+
+
+
+
+
+
+
+
+                QMessageBox.information(self.dlg,"MENSAJE", "Tipo de dato: " + str(type(vias)))
+        geometry = QgsVectorLayer().getGeometry()
+        geom = geometry(vias)
+        buffer = vias.buffer(100,-1)
+        CRS = vias.crs().postgisSrid()
+        URI = "Polygon?crs=epsg:"+str(CRS)+"&field=id:integer""&index=yes"
+        mem_layer = QgsVectorLayer(URI, "buffer_100", "memory")
+        QgsMapLayerRegistry.instance().addMapLayer(mem_layer)
+        mem_layer.startEditing()
+        feat2 = QgsFeature()
+        feat2.setGeometry(buffer)
+        feat2.setAttributes([1])
+        mem_layer.addFeature(feat2, True)
+        mem_layer.commitChanges()
+
+
+
+
+        layer =  QgsVectorLayer('Polygon', 'poly' , "memory")
+        pr = layer.dataProvider()
+        poly = QgsFeature()
+        #points = [point1,QgsPoint(50,150),point2,QgsPoint(100,50)]
+        # or points = [QgsPoint(50,50),QgsPoint(50,150),QgsPoint(100,150),QgsPoint(100,50)]
+        poly.setGeometry(QgsGeometry.fromPolygon([diff1]))
+        pr.addFeatures([poly])
+        layer.updateExtents()
+        QgsMapLayerRegistry.instance().addMapLayers([layer])
+
+
+        #processing.runandload("qgis:polygonintersections",buffer_vias200, buffer_vias100, "", "", "C:/Users/toshiba/Downloads"  )
+        #processing.runalg('', diferencia, diferencia.shp)
+        #diferencia = QgsVectorLayer("C:/Users/toshiba/Downloads ", "diferencia", "ogr" )
+
+
+
+        crs = QgsCoordinateReferenceSystem(crs, QgsCoordinateReferenceSystem.PostgisCrsId)
+        typeString = "%s?crs=%s" % (typeString, crs.authid())
+        layer = QgsVectorLayer(typeString, diff1, "memory")
+        layer.dataProvider().addAttributes([QgsField("name", QVariant.String)])
+        registry = QgsMapLayerRegistry.instance()
+        QgsMapLayerRegistry.instance().addMapLayer(layer)
+        return layer
+
+
+
 
 
         #QgsMapLayerRegistry.instance().addMapLayer(diff1, True)
@@ -319,10 +506,10 @@ class Soil:
         #iface.addVectorLayer(diff1, "diff1", "ogr")
         #diff2 = feat_p10.geometry().difference(feat_p9.geometry()).exportToWkt()
         #print diff1
-        #QMessageBox.information(self.dlg,"POBLACION INFINITA", "Tamano de muestra: " + str(type(buffer_vias100)))
 
 
-        """
+
+
         #Interseccion de gemotrías
         line = buffer_vias500
         grid = buffer_vias400
@@ -347,7 +534,7 @@ class Soil:
 
 
 
-"""
+
     def guardar_clicked(self):
         self.guardar = QtGui.QFileDialog.getSaveFileName(self.dlg, 'Guardar Archivo',".", "ShapeFile (*.shp)")
         self.dlg.save.setText(self.guardar)
@@ -364,7 +551,7 @@ class Soil:
             self.outShape.clear()
         self.outShape.insert(outPath)
 
-
+"""
 
 
 
