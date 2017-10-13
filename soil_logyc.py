@@ -318,14 +318,14 @@ class Soil:
         suelos_sal = iface.addVectorLayer("C:/Users/toshiba/Downloads/suelos_sal.shp", "", "ogr")
 
 
-        #Selección de zonas donde se tomarán las muestras
-        #Intersección entre buffer 1km y suelos salinos
-        processing.runalg('qgis:intersection', buffer_vias1000, suelos_sal, "C:/Users/toshiba/Downloads/zonas_muestreo.shp")
-        zonas_muestreo = iface.addVectorLayer("C:/Users/toshiba/Downloads/zonas_muestreo.shp", "", "ogr")
+        #Selección de zonas donde se tomarán las muestras---------------------------------------------------------------------------------------------
+        #Intersección entre buffer 1km y suelos salinos-----------------------------------------------------------------------------------------------
+        #processing.runalg('qgis:intersection', buffer_vias1000, suelos_sal, "C:/Users/toshiba/Downloads/zonas_muestreo.shp")-------------------------
+        #zonas_muestreo = iface.addVectorLayer("C:/Users/toshiba/Downloads/zonas_muestreo.shp", "", "ogr")--------------------------------------------
 
 
         #Generación de sitios de muestreo
-        processing.runalg('qgis:randompointsinsidepolygonsfixed', zonas_muestreo, 0, muestra_int, 0, "C:/Users/toshiba/Downloads/sitios_muestreo.shp")
+        processing.runalg('qgis:randompointsinsidepolygonsfixed', buffer_vias1000, 0, muestra_int, 0, "C:/Users/toshiba/Downloads/sitios_muestreo.shp")
         sitios_muestreo = iface.addVectorLayer("C:/Users/toshiba/Downloads/sitios_muestreo.shp", "", "ogr")
 
 
@@ -345,10 +345,8 @@ class Soil:
         dem = selectedLayer
 
         processing.runalg('gdalogr:slope', dem, 1, True, False,True, 1, "C:/Users/toshiba/Downloads/slope.tif")
-
+        slope = iface.addRasterLayer("C:/Users/toshiba/Downloads/slope.tif", "SLOPE")
         QMessageBox.information(self.dlg, "MENSAJE", "todo corre bien hasta aqui" )
-
-        #slope = iface.addRasterLayer("C:/Users/toshiba/Downloads/slope.tif", "", "ogr")
 
 
 
