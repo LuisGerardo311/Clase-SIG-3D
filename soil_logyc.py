@@ -258,7 +258,6 @@ class Soil:
         for f in selectedLayer.getFeatures():
                 value = e.evaluate (f)
                 selectedLayer.changeAttributeValue (f.id(), idx, value)
-
         area_est.deselect(0)
         #atualizción de columna
         #cierre de edición
@@ -272,7 +271,6 @@ class Soil:
         universo = int(value)
 
         #selección del tamaño de muestra
-
         if universo < 100000:
             muestra = (universo * (nivel_conf*nivel_conf * 0.5 * 0.5)) / ((universo - 1) * (marg_error*marg_error) + (nivel_conf * 0.5* 0.5))
             QMessageBox.information(self.dlg,"POBLACION FINITA", "Tamano de muestra: " + str(int(muestra)))
@@ -316,24 +314,41 @@ class Soil:
         selectedLayerIndex = self.dlg.capasuelos.currentIndex()
         selectedLayer = layers[selectedLayerIndex]
         suelos = selectedLayer
-
         processing.runalg('qgis:extractbyattribute', suelos, "Codigo_Cla", 3, "3" , "C:/Users/toshiba/Downloads/suelos_sal.shp")
         suelos_sal = iface.addVectorLayer("C:/Users/toshiba/Downloads/suelos_sal.shp", "", "ogr")
 
 
-        #Generación de puntos de muestreo
-        processing.runalg('qgis:randompointsinsidepolygonsfixed', buffer_vias1000, 0, muestra_int, 0, "C:/Users/toshiba/Downloads/sitios_muestreo.shp")
+        #Selección de zonas donde se tomarán las muestras
+        #Intersección entre buffer 1km y suelos salinos
+        processing.runalg('qgis:intersection', buffer_vias1000, suelos_sal, "C:/Users/toshiba/Downloads/zonas_muestreo.shp")
+        zonas_muestreo = iface.addVectorLayer("C:/Users/toshiba/Downloads/zonas_muestreo.shp", "", "ogr")
+
+
+        #Generación de sitios de muestreo
+        processing.runalg('qgis:randompointsinsidepolygonsfixed', zonas_muestreo, 0, muestra_int, 0, "C:/Users/toshiba/Downloads/sitios_muestreo.shp")
         sitios_muestreo = iface.addVectorLayer("C:/Users/toshiba/Downloads/sitios_muestreo.shp", "", "ogr")
 
 
-        #agrerar campo "tiempo" a la tabla de atributos
+        #agrerar campo "tiempo" a la tabla de atributos de la capa sitios de muestreo
         layer = iface.activeLayer()
         provider = layer.dataProvider()
         field = QgsField("tiempo", QVariant.Double)
         provider.addAttributes([field])
         layer.updateFields()
 
+
+
+        #Generar mapa pendiente a partir del DEM
+  		#Selecciona el DEM
+        selectedLayerIndex = self.dlg.capacurvas.currentIndex()
+        selectedLayer = layers[selectedLayerIndex]
+        dem = selectedLayer
+
+        processing.runalg('gdalogr:slope', dem, 1, True, False,True, 1, "C:/Users/toshiba/Downloads/slope.tif")
+
         QMessageBox.information(self.dlg, "MENSAJE", "todo corre bien hasta aqui" )
+
+        #slope = iface.addRasterLayer("C:/Users/toshiba/Downloads/slope.tif", "", "ogr")
 
 
 
