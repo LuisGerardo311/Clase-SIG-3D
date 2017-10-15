@@ -32,7 +32,7 @@ import processing
 import random
 import sys
 sys.path.append('C:\Users\toshiba\.qgis2\python\plugins')
-import processing
+from qgis.analysis import *
 
 # Initialize Qt resources from file resources.py
 import resources
@@ -200,7 +200,7 @@ class Soil:
 
     def run(self):
         """Run method that performs all the real work"""
-        self.dlg.comboBox.clear()
+        self.dlg.capaarea.clear()
         self.dlg.capavias.clear()
         self.dlg.capacurvas.clear()
         self.dlg.capasuelos.clear()
@@ -213,7 +213,7 @@ class Soil:
             else:
                 layer_list.append(layer.name())
 
-        self.dlg.comboBox.addItems(layer_list)
+        self.dlg.capaarea.addItems(layer_list)
         self.dlg.capacurvas.addItems(layer_list)
         self.dlg.capavias.addItems(layer_list)
         self.dlg.capasuelos.addItems(layer_list)
@@ -235,7 +235,7 @@ class Soil:
         layers = self.iface.legendInterface().layers()
 
 		#Selecciona la capa de universo muestreal (área de estudio)
-        selectedLayerIndex = self.dlg.comboBox.currentIndex()
+        selectedLayerIndex = self.dlg.capaarea.currentIndex()
         selectedLayer = layers[selectedLayerIndex]
         area_est = selectedLayer
 
@@ -296,17 +296,17 @@ class Soil:
         vias_aptas = iface.addVectorLayer("C:/Users/toshiba/Downloads/vias_aptas.shp", "", "ogr")
 
         # Generar el buffer de la capa vias aptas
-        processing.runalg('qgis:fixeddistancebuffer', vias_aptas, 250, 5, True, "C:/Users/toshiba/Downloads/buffer_vias250.shp")
-        buffer_vias250 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias250.shp", "", "ogr")
+        #processing.runalg('qgis:fixeddistancebuffer', vias_aptas, 500, 5, True, "C:/Users/toshiba/Downloads/buffer_vias500.shp")
+        #buffer_vias500 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias500.shp", "", "ogr")
 
-        processing.runalg('qgis:fixeddistancebuffer', vias_aptas, 500, 5, True, "C:/Users/toshiba/Downloads/buffer_vias500.shp")
-        buffer_vias500 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias500.shp", "", "ogr")
+        #processing.runalg('qgis:fixeddistancebuffer', vias_aptas, 1000, 5, True, "C:/Users/toshiba/Downloads/buffer_vias1000.shp")
+        #buffer_vias1000 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias1000.shp", "", "ogr")
 
-        processing.runalg('qgis:fixeddistancebuffer', vias_aptas, 750, 5, True, "C:/Users/toshiba/Downloads/buffer_vias750.shp")
-        buffer_vias750 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias750.shp", "", "ogr")
+        #processing.runalg('qgis:fixeddistancebuffer', vias_aptas, 1500, 5, True, "C:/Users/toshiba/Downloads/buffer_vias1500.shp")
+        #buffer_vias1500 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias1500.shp", "", "ogr")
 
-        processing.runalg('qgis:fixeddistancebuffer', vias_aptas, 1000, 5, True, "C:/Users/toshiba/Downloads/buffer_vias1000.shp")
-        buffer_vias1000 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias1000.shp", "", "ogr")
+        processing.runalg('qgis:fixeddistancebuffer', vias_aptas, 2000, 5, True, "C:/Users/toshiba/Downloads/buffer_vias2000.shp")
+        buffer_vias2000 = iface.addVectorLayer("C:/Users/toshiba/Downloads/buffer_vias2000.shp", "", "ogr")
 
 
         #extracción por atributos de suelos con media, alta y muy alta suceptibilidad
@@ -314,18 +314,26 @@ class Soil:
         selectedLayerIndex = self.dlg.capasuelos.currentIndex()
         selectedLayer = layers[selectedLayerIndex]
         suelos = selectedLayer
-        processing.runalg('qgis:extractbyattribute', suelos, "Codigo_Cla", 3, "3" , "C:/Users/toshiba/Downloads/suelos_sal.shp")
+        processing.runalg('qgis:extractbyattribute', suelos, "Codigo_Cla", 3, "2" , "C:/Users/toshiba/Downloads/suelos_sal.shp")
         suelos_sal = iface.addVectorLayer("C:/Users/toshiba/Downloads/suelos_sal.shp", "", "ogr")
 
 
-        #Selección de zonas donde se tomarán las muestras---------------------------------------------------------------------------------------------
-        #Intersección entre buffer 1km y suelos salinos-----------------------------------------------------------------------------------------------
-        #processing.runalg('qgis:intersection', buffer_vias1000, suelos_sal, "C:/Users/toshiba/Downloads/zonas_muestreo.shp")-------------------------
-        #zonas_muestreo = iface.addVectorLayer("C:/Users/toshiba/Downloads/zonas_muestreo.shp", "", "ogr")--------------------------------------------
+        #Selección de zonas donde se tomarán las muestras
+        #Intersección entre buffer 1km y suelos salinos
+        overlayAnalyzer = QgsOverlayAnalyzer()
+        overlayAnalyzer.intersection(buffer_vias2000, suelos_sal, "C:/Users/toshiba/Downloads/area_muestreo.shp")
+        area_muestreo = iface.addVectorLayer("C:/Users/toshiba/Downloads/area_muestreo.shp", "", "ogr")
 
+        #Unir polígonos del área de muestreo (dissolve)
+        from qgis.analysis import QgsGeometryAnalyzer
+        lyr =iface.mapCanvas()
+        layer = lyr.currentLayer()
+        QgsGeometryAnalyzer().dissolve(area_muestreo,"C:/Users/toshiba/Downloads/diss.shp", False, -1 )
+        True
+        diss = iface.addVectorLayer("C:/Users/toshiba/Downloads/diss.shp", "", "ogr")
 
         #Generación de sitios de muestreo
-        processing.runalg('qgis:randompointsinsidepolygonsfixed', buffer_vias1000, 0, muestra_int, 0, "C:/Users/toshiba/Downloads/sitios_muestreo.shp")
+        processing.runalg('qgis:randompointsinsidepolygonsfixed', buffer_vias2000, 0, muestra_int, 0, "C:/Users/toshiba/Downloads/sitios_muestreo.shp")
         sitios_muestreo = iface.addVectorLayer("C:/Users/toshiba/Downloads/sitios_muestreo.shp", "", "ogr")
 
 
@@ -363,9 +371,7 @@ class Soil:
 
 
 
-        #processing.runalg('qgis:symetricaldifference', buffer_vias200,  buffer_vias400, "C:/Users/toshiba/Downloads/diff_800.shp")
-        #diff_800 = iface.addVectorLayer("C:/Users/toshiba/Downloads/diff_800.shp", "", "ogr")
-        #QMessageBox.information(self.dlg, "MENSAJE", "se realizo la diferencia: "+ str(type(diff_800)))
+
 
 
 
